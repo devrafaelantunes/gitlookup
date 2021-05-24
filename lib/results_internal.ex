@@ -94,7 +94,7 @@ defmodule GitLookup.Results.Internal do
     |> Repo.transaction()
   end
 
-  def fetch_payload(%{"language" => language}) do
+  def fetch_payload(language) do
     payload =
       Query.language(language)
       |> Repo.one()
