@@ -1,0 +1,19 @@
+<%= if @results == %{} do %>
+
+<h1>Selecione uma linguagem</h1>
+
+<% else %>
+
+<h1>Mostrar os resultados</h1>
+
+<% end %>
+
+<%= f = form_for @changeset, "#", phx_submit: :save %>
+    <%= label f, :language %>
+    <%= select f, :language, ["Elixir", "Ruby", "JavaScript", "Java", "C", "Go"], prompt: "Select a language" %>
+    <%= error_tag f, :language %>
+
+    <%= submit "Search", phx_disable_with: "Searching..." %>
+</form>
+
+<%= live_redirect "Clear", to: Routes.live_path(@socket, GitLookupWeb.SearchLive)%>

@@ -4,25 +4,25 @@ defmodule GitLookup.Results.Internal do
   import Ecto.Changeset
 
   #time limit in minutes
-  @time_limit 90
+  @time_limit 1
 
-  def create(language) do
-    with %Ecto.Changeset{} = changeset <- Results.changeset(language, %{}),
+  def create(%{"language" => language}) do
+    with %Ecto.Changeset{} = changeset <- Results.changeset(%{language: language, payload: %{}}),
         {:ok, payload} <- check_existence(language),
-        {:ok, :compare, :on_time, _} <- compare_datetime(payload, changeset),
-        {:ok, :compare, new_payload, _} <- compare_results(language, payload, changeset) do
+        {:ok, :on_time} <- compare_datetime(payload, changeset),
+        {:ok, :not_equal, new_payload} <- compare_results(language, payload, changeset) do
 
           insert(payload, new_payload, language)
 
       else
-        {nil, language} -> insert(language, GitLookup.get(language))
-        {:error, :compare, {changeset, time_difference}, _} -> add_error(changeset, :results, "wait for #{time_difference}")
-        {:error, :compare, changeset, _} -> add_error(changeset, :results, "the same")
+        {nil, language} -> IO.inspect(insert(language, GitLookup.get(language)))
+        {:error, :too_early, changeset} -> {:error, add_error(changeset, :language, "Results retrived from DB. Please, wait before making another request")}
+        {:error, :equal, changeset} -> {:error, add_error(changeset, :language, "Results retrived from DB. The results did not change")}
       end
   end
 
   defp check_existence(language) do
-    IO.puts("Verificando existencia...")
+    IO.puts("Checando a existencia...")
 
     payload =
       Query.language(language)
@@ -35,45 +35,44 @@ defmodule GitLookup.Results.Internal do
   end
 
   defp compare_datetime(%Results{inserted_at: datetime} = _result, changeset) do
-    Multi.new()
-    |> Multi.run(:inserted_datetime, fn _, _ ->
-      {:ok, DateTime.from_naive(datetime, "Etc/UTC")}
-    end)
-    |> Multi.run(:time_difference, fn _, %{inserted_datetime: {:ok, inserted_datetime}} ->
-      IO.inspect(inserted_datetime)
-      {:ok, DateTime.diff(DateTime.utc_now, inserted_datetime) / 60}
-    end)
-    |> Multi.run(:compare, fn _, %{time_difference: time_difference} ->
-      if time_difference > @time_limit do
-        {:ok, :on_time}
-      else
-        {:error, {changeset, time_difference}}
-      end
-    end)
-    |> Repo.transaction()
+    IO.puts("Comparando horario...")
+
+    {:ok, inserted_datetime} =
+      DateTime.from_naive(datetime, "Etc/UTC")
+
+    time_difference =
+      DateTime.diff(DateTime.utc_now, inserted_datetime) / 60
+
+    if time_difference > @time_limit do
+      {:ok, :on_time}
+    else
+      IO.puts("Ainda falta")
+      {:error, :too_early, changeset}
+    end
   end
 
-  defp compare_results(language, %{payload: %{"items" => [payload_db]}} = _result, changeset) do
-    Multi.new()
-    |> Multi.run(:payload, fn _, _ ->
-      %{items: [payload]} = GitLookup.get(language)
+  defp compare_results(language, %{payload: %{"items" => payload_db}} = _result, changeset) do
+    %{items: payload} = GitLookup.get(language)
 
-      {:ok, payload}
-    end)
-    |> Multi.run(:compare, fn _, %{payload: payload} ->
-      if payload == Utils.atomify_map(payload_db) do
-        {:error, changeset}
-      else
-        {:ok, %{items: [payload]}}
-      end
-    end)
-    |> Repo.transaction()
+    payload_db = Enum.map(Enum.at(payload_db, 0), fn payload -> Utils.atomify_map(payload) end)
+
+
+    if payload == payload_db do
+      IO.puts("Sao iguais")
+      #{:ok, :not_equal, %{items: [payload]}}
+      {:error, :equal, changeset}
+    else
+      IO.puts("Diferentoes")
+      {:ok, :not_equal, %{items: [payload]}}
+    end
   end
 
-  defp insert(language, attrs) do
+  defp insert(language, items) do
+    IO.puts("Inserindo...")
+
     Multi.new()
     |> Multi.run(:changeset, fn _, _ ->
-      {:ok, Results.changeset(language, attrs)}
+      {:ok, Results.changeset(%{language: language, payload: items})}
     end)
     |> Multi.insert(:insert, fn %{changeset: changeset} ->
       changeset
@@ -81,15 +80,28 @@ defmodule GitLookup.Results.Internal do
     |> Repo.transaction()
   end
 
-  defp insert(result, payload, language) do
+  defp insert(result, items, language) do
+    IO.puts("Inserindo e deletando...")
+
     Multi.new()
     |> Multi.delete(:delete, result)
     |> Multi.run(:changeset, fn _, _ ->
-      {:ok, Results.changeset(language, payload)}
+      {:ok, Results.changeset(%{language: language, payload: items})}
     end)
     |> Multi.insert(:insert, fn %{changeset: changeset} ->
       changeset
     end)
     |> Repo.transaction()
+  end
+
+  def fetch_payload(%{"language" => language}) do
+    payload =
+      Query.language(language)
+      |> Repo.one()
+
+  %{payload: %{"items" => payload_db}} = payload
+
+  Enum.map(Enum.at(payload_db, 0), fn payload -> Utils.atomify_map(payload) end)
+
   end
 end

@@ -9,10 +9,7 @@ defmodule GitLookup.Results do
     timestamps()
   end
 
-  def changeset(language, items) do
-    attrs =
-      %{language: language, payload: items}
-
+  def changeset(attrs \\ %{}) do
     %__MODULE__{}
     |> cast(attrs, [:language, :payload])
     |> validate_required([:language, :payload])
