@@ -1,7 +1,5 @@
 defmodule GitLookup do
 
-  @per_page 3
-
   def call(language, per_page, headers \\ []) do
     "https://api.github.com/search/repositories?q=language:#{language}&sort=stars&order_by=desc&per_page=#{per_page}"
 

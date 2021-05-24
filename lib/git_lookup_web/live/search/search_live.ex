@@ -12,12 +12,16 @@ defmodule GitLookupWeb.SearchLive do
       |> assign(:language, nil)}
   end
 
-  def handle_event("save", %{"results" => results}, socket) do
-    case Internal.create(results) do
+  def handle_event("save", %{"results" => values}, socket) do
+    case Internal.create(values) do
       {:error, %Ecto.Changeset{} = changeset} ->
+        IO.inspect("ERROU RAPAZZZ")
         changeset = %{changeset | action: :insert}
-        %{"language" => language} = results
+        %{"language" => language} = values
 
+        IO.inspect(language)
+
+        IO.inspect(Internal.fetch_payload(language))
 
         {:noreply,
           socket
@@ -25,15 +29,29 @@ defmodule GitLookupWeb.SearchLive do
           |> assign(:results, Internal.fetch_payload(language))
           |> assign(:language, language)}
 
+      {:error, :empty, %Ecto.Changeset{} = changeset} ->
+        changeset = %{changeset | action: :insert}
+
+        {:noreply,
+          socket
+          |> assign(:changeset, changeset)}
+
       {:ok, changeset} ->
-        %{"language" => language} = results
+        IO.inspect("DEU OK")
         %{changeset: %Ecto.Changeset{changes: %{payload: %{items: results}}}} = changeset
+        %{"language" => language} = values
+
+        IO.inspect(language)
+        IO.inspect(values)
+        IO.inspect(results)
+
 
         {:noreply,
           socket
           |> assign(:changeset, Results.changeset())
-          |> assign(:results, Enum.at(results, 0))
+          |> assign(:results, results)
           |> assign(:language, language)}
+
 
     end
   end

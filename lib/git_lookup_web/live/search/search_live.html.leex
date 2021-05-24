@@ -15,7 +15,7 @@
     <%= error_tag f, :language %>
 
     <%= label f, :per_page %>
-    <%= number_input f, :per_page %>
+    <%= select f, :per_page, 1..10 %>
 
     <%= submit "Search", phx_disable_with: "Searching..." %>
 </form>

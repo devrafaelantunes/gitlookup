@@ -54,7 +54,13 @@ defmodule GitLookup.Results.Internal do
   defp compare_results(language, %{payload: %{"items" => payload_db}} = _result, changeset, per_page) do
     %{items: payload} = GitLookup.get(language, per_page)
 
-    payload_db = Enum.map(Enum.at(payload_db, 0), fn payload -> Utils.atomify_map(payload) end)
+    payload_db = Enum.map(payload_db, fn payload -> Utils.atomify_map(payload) end)
+
+    IO.inspect("PAYLOAD DBDBDBDBDBDB")
+    IO.inspect(payload_db)
+
+    IO.inspect("pAYLOAD NORMALMALMLA")
+    IO.inspect(payload)
 
 
     if payload == payload_db do
@@ -63,21 +69,25 @@ defmodule GitLookup.Results.Internal do
       {:error, :equal, changeset}
     else
       IO.puts("Diferentoes")
-      {:ok, :not_equal, %{items: [payload]}}
+      {:ok, :not_equal, %{items: payload}}
     end
   end
 
   defp insert(language, items) do
     IO.puts("Inserindo...")
-
-    Multi.new()
-    |> Multi.run(:changeset, fn _, _ ->
-      {:ok, Results.changeset(%{language: language, payload: items})}
-    end)
-    |> Multi.insert(:insert, fn %{changeset: changeset} ->
-      changeset
-    end)
-    |> Repo.transaction()
+    if language == "" do
+      changeset = Results.changeset(%{language: language, payload: items})
+      {:error, :empty, changeset}
+    else
+      Multi.new()
+      |> Multi.run(:changeset, fn _, _ ->
+        {:ok, Results.changeset(%{language: language, payload: items})}
+      end)
+      |> Multi.insert(:insert, fn %{changeset: changeset} ->
+        changeset
+      end)
+      |> Repo.transaction()
+    end
   end
 
   defp insert(result, items, language) do
@@ -101,7 +111,7 @@ defmodule GitLookup.Results.Internal do
 
   %{payload: %{"items" => payload_db}} = payload
 
-  Enum.map(Enum.at(payload_db, 0), fn payload -> Utils.atomify_map(payload) end)
+  Enum.map(payload_db, fn payload -> Utils.atomify_map(payload) end)
 
   end
 end
