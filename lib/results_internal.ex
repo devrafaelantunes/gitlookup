@@ -6,16 +6,16 @@ defmodule GitLookup.Results.Internal do
   #time limit in minutes
   @time_limit 1
 
-  def create(%{"language" => language}) do
+  def create(%{"language" => language, "per_page" => per_page}) do
     with %Ecto.Changeset{} = changeset <- Results.changeset(%{language: language, payload: %{}}),
         {:ok, payload} <- check_existence(language),
         {:ok, :on_time} <- compare_datetime(payload, changeset),
-        {:ok, :not_equal, new_payload} <- compare_results(language, payload, changeset) do
+        {:ok, :not_equal, new_payload} <- compare_results(language, payload, changeset, per_page) do
 
           insert(payload, new_payload, language)
 
       else
-        {nil, language} -> IO.inspect(insert(language, GitLookup.get(language)))
+        {nil, language} -> insert(language, GitLookup.get(language, per_page))
         {:error, :too_early, changeset} -> {:error, add_error(changeset, :language, "Results retrived from DB. Please, wait before making another request")}
         {:error, :equal, changeset} -> {:error, add_error(changeset, :language, "Results retrived from DB. The results did not change")}
       end
@@ -51,8 +51,8 @@ defmodule GitLookup.Results.Internal do
     end
   end
 
-  defp compare_results(language, %{payload: %{"items" => payload_db}} = _result, changeset) do
-    %{items: payload} = GitLookup.get(language)
+  defp compare_results(language, %{payload: %{"items" => payload_db}} = _result, changeset, per_page) do
+    %{items: payload} = GitLookup.get(language, per_page)
 
     payload_db = Enum.map(Enum.at(payload_db, 0), fn payload -> Utils.atomify_map(payload) end)
 

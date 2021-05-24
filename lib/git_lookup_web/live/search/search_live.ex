@@ -12,11 +12,11 @@ defmodule GitLookupWeb.SearchLive do
       |> assign(:language, nil)}
   end
 
-  def handle_event("save", %{"results" => language}, socket) do
-    case Internal.create(language) do
+  def handle_event("save", %{"results" => results}, socket) do
+    case Internal.create(results) do
       {:error, %Ecto.Changeset{} = changeset} ->
         changeset = %{changeset | action: :insert}
-        %{"language" => language} = language
+        %{"language" => language} = results
 
 
         {:noreply,
@@ -26,7 +26,7 @@ defmodule GitLookupWeb.SearchLive do
           |> assign(:language, language)}
 
       {:ok, changeset} ->
-        %{"language" => language} = language
+        %{"language" => language} = results
         %{changeset: %Ecto.Changeset{changes: %{payload: %{items: results}}}} = changeset
 
         {:noreply,

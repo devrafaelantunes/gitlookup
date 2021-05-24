@@ -14,6 +14,9 @@
     <%= select f, :language, ["Elixir", "Ruby", "JavaScript", "Java", "C", "Go"], prompt: "Select language" %>
     <%= error_tag f, :language %>
 
+    <%= label f, :per_page %>
+    <%= number_input f, :per_page %>
+
     <%= submit "Search", phx_disable_with: "Searching..." %>
 </form>
 

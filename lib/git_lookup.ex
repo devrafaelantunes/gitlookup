@@ -2,8 +2,8 @@ defmodule GitLookup do
 
   @per_page 3
 
-  def call(language, headers \\ []) do
-    "https://api.github.com/search/repositories?q=language:#{language}&sort=stars&order_by=desc&per_page=#{@per_page}"
+  def call(language, per_page, headers \\ []) do
+    "https://api.github.com/search/repositories?q=language:#{language}&sort=stars&order_by=desc&per_page=#{per_page}"
 
     |> HTTPoison.get(headers)
     |> case do
@@ -38,9 +38,9 @@ defmodule GitLookup do
 
   def decode({ok, body, _}), do: {ok, body}
 
-  def get(language, headers \\ []) do
+  def get(language, per_page, headers \\ []) do
       language
-      |> call(headers)
+      |> call(per_page, headers)
       |> content_type
       |> decode
   end
